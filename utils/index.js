@@ -1,31 +1,58 @@
-import mostrarMenu from './utils/menu.js';
-import { listarTareas, agregarTarea, editarTarea, eliminarTarea } from './controllers/tareasController.js';
+const readline = require("readline");
+const menu = require("./utils/menu");
+const {
+  agregarTarea,
+  listarTareas,
+  cambiarEstado,
+  buscarTareas
+} = require("./controllers/tareasController");
 
-async function main() {
-  let salir = false;
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
 
-  while (!salir) {
-    const opcion = await mostrarMenu();
-
+function iniciar() {
+  menu.mostrarMenu();
+  rl.question("selecciona una opción: ", (opcion) => {
     switch (opcion) {
-      case '1':
-        await agregarTarea();
+      case "1":
+        rl.question("Título de la tarea: ", (titulo) => {
+          rl.question("Descripción: ", (descripcion) => {
+            rl.question("Prioridad (alta, media, baja): ", (prioridad) => {
+              agregarTarea(titulo, descripcion, prioridad);
+              iniciar();
+            });
+          });
+        });
         break;
-      case '2':
+      case "2":
         listarTareas();
+        iniciar();
         break;
-      case '3':
-        await editarTarea();
+      case "3":
+        rl.question("ID de la tarea: ", (id) => {
+          rl.question("Nuevo estado (pendiente, en progreso, completada): ", (estado) => {
+            cambiarEstado(id, estado);
+            iniciar();
+          });
+        });
         break;
-      case '4':
-        await eliminarTarea();
+      case "4":
+        rl.question("Palabra clave a buscar: ", (palabra) => {
+          buscarTareas(palabra);
+          iniciar();
+        });
         break;
-      case '5':
-        salir = true;
-        console.log('👋 ¡Hasta pronto!');
+      case "5":
+        console.log("Saliendo del sistema...");
+        rl.close();
         break;
+      default:
+        console.log("Opción no válida.");
+        iniciar();
     }
-  }
+  });
 }
 
-main();
+iniciar();
