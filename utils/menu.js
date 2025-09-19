@@ -1,19 +1,10 @@
-import inquirer from 'inquirer';
-
-export default async function mostrarMenu() {
-  const { opcion } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'opcion',
-      message: 'Selecciona una opción:',
-      choices: [
-        { name: '1. Agregar tarea', value: '1' },
-        { name: '2. Listar tareas', value: '2' },
-        { name: '3. Editar tarea', value: '3' },
-        { name: '4. Eliminar tarea', value: '4' },
-        { name: '5. Salir', value: '5' }
-      ]
-    }
-  ]);
-  return opcion;
+function mostrarMenu() {
+  console.log("\n===== GESTOR DE TAREAS =====");
+  console.log("1.Agregar tarea");
+  console.log("2.Listar tareas");
+  console.log("3.Cambiar estado de tarea");
+  console.log("4.Buscar tarea por palabra clave");
+  console.log("5.Salir");
 }
+
+export { mostrarMenu };
