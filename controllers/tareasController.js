@@ -3,13 +3,10 @@ import _ from "lodash";
 import { conectar } from "../config/persistenciaArchivos.js";
 
 
-function leerTareas() {
-  return conectar.leer();
+async function leerTareas() {
+  const db = await conectar();
+  return await db.collection("tareas").find().toArray();
 }
-function guardarTareas(tareas) {
-  conectar.guardar(tareas);
-}
-
 
 export async function agregarTarea() {
   const { descripcion } = await inquirer.prompt([
@@ -20,19 +17,20 @@ export async function agregarTarea() {
     },
   ]);
 
-  const tareas = leerTareas();
-  tareas.push({
+  const nuevaTarea = {
     id: Date.now(),
     descripcion,
     completada: false,
-  });
-  guardarTareas(tareas);
+  };
+
+  const db = await conectar();
+  await db.collection("tareas").insertOne(nuevaTarea);
 
   console.log("Tarea agregada con éxito!");
 }
 
 export async function listarTareas() {
-  const tareas = leerTareas();
+  const tareas = await leerTareas();
   if (tareas.length === 0) {
     console.log("No hay tareas registradas.");
     return;
@@ -47,11 +45,9 @@ export async function listarTareas() {
 
 
 export async function listarPorEstado(estado) {
-  const tareas = leerTareas();
-  const filtradas =
-    estado === "completadas"
-      ? tareas.filter((t) => t.completada)
-      : tareas.filter((t) => !t.completada);
+  const db = await conectar();
+  const filtro = estado === "completadas" ? { completada: true } : { completada: false };
+  const filtradas = await db.collection("tareas").find(filtro).toArray();
 
   if (filtradas.length === 0) {
     console.log(`No hay tareas ${estado}.`);
@@ -67,9 +63,13 @@ export async function listarPorEstado(estado) {
 }
 
 export async function cambiarEstado() {
-  const tareas = leerTareas();
-  if (tareas.length === 0) {
-    console.log("📭 No hay tareas para actualizar.");
+  const pendientes = await (await conectar())
+    .collection("tareas")
+    .find({ completada: false })
+    .toArray();
+
+  if (pendientes.length === 0) {
+    console.log("Todas las tareas ya están completadas.");
     return;
   }
 
@@ -78,21 +78,18 @@ export async function cambiarEstado() {
       type: "list",
       name: "id",
       message: "Selecciona la tarea que deseas marcar como completada:",
-      choices: tareas
-        .filter((t) => !t.completada)
-        .map((t) => ({ name: t.descripcion, value: t.id })),
+      choices: pendientes.map((t) => ({ name: t.descripcion, value: t.id })),
     },
   ]);
 
-  const index = tareas.findIndex((t) => t.id === id);
-  tareas[index].completada = true;
-  guardarTareas(tareas);
+  const db = await conectar();
+  await db.collection("tareas").updateOne({ id }, { $set: { completada: true } });
 
   console.log("Tarea marcada como completada!");
 }
 
 export async function editarTarea() {
-  const tareas = leerTareas();
+  const tareas = await leerTareas();
   if (tareas.length === 0) {
     console.log("No hay tareas para editar.");
     return;
@@ -115,20 +112,18 @@ export async function editarTarea() {
     },
   ]);
 
-  const index = tareas.findIndex((t) => t.id === id);
-  tareas[index].descripcion = nuevaDescripcion;
-  guardarTareas(tareas);
+  const db = await conectar();
+  await db.collection("tareas").updateOne({ id }, { $set: { descripcion: nuevaDescripcion } });
 
   console.log("Tarea editada con éxito!");
 }
 
 export async function eliminarTarea() {
-  const tareas = leerTareas();
+  const tareas = await leerTareas();
   if (tareas.length === 0) {
     console.log("No hay tareas para eliminar.");
     return;
   }
-
   const { id } = await inquirer.prompt([
     {
       type: "list",
@@ -138,8 +133,8 @@ export async function eliminarTarea() {
     },
   ]);
 
-  const nuevas = tareas.filter((t) => t.id !== id);
-  guardarTareas(nuevas);
+  const db = await conectar();
+  await db.collection("tareas").deleteOne({ id });
 
   console.log("Tarea eliminada con éxito!");
 }
