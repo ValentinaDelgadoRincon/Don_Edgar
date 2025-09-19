@@ -7,4 +7,4 @@ function mostrarMenu() {
   console.log("5.Salir");
 }
 
-module.exports = { mostrarMenu };
+export { mostrarMenu };

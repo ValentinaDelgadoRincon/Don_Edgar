@@ -1,5 +1,5 @@
-const _ = require("lodash");
-let tareas = require("../data/tareas");
+import _ from "lodash";
+import {tareas} from "../data/tareas.js";
 
 
 function agregarTarea(titulo, descripcion, prioridad = "media") {
@@ -19,7 +19,7 @@ function agregarTarea(titulo, descripcion, prioridad = "media") {
   tareas.push(nuevaTarea);
 
 
-  tareas = _.uniqBy(tareas, "titulo");
+tareas.splice(0, tareas.length, ..._.uniqBy(tareas, "titulo"));
 
   console.log("Tarea agregada correctamente.");
 }
@@ -70,7 +70,7 @@ function buscarTareas(palabraClave) {
   console.table(resultados);
 }
 
-module.exports = {
+export {
   agregarTarea,
   listarTareas,
   cambiarEstado,

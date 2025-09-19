@@ -1,11 +1,12 @@
-const readline = require("readline");
-const menu = require("./utils/menu");
-const {
-  agregarTarea,
-  listarTareas,
-  cambiarEstado,
-  buscarTareas
-} = require("./controllers/tareasController");
+import readline from "readline";
+import { agregarTarea,listarTareas,cambiarEstado,buscarTareas } from "./controllers/tareasController.js";
+import { mostrarMenu } from "./utils/menu.js";
+// const {
+//   agregarTarea,
+//   listarTareas,
+//   cambiarEstado,
+//   buscarTareas
+// } = require("./controllers/tareasController");
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -13,7 +14,7 @@ const rl = readline.createInterface({
 });
 
 function iniciar() {
-  menu.mostrarMenu();
+  mostrarMenu();
   rl.question("selecciona una opción: ", (opcion) => {
     switch (opcion) {
       case "1":
