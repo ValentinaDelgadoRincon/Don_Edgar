@@ -1,22 +1,35 @@
 import inquirer from 'inquirer';
 import { tareas } from '../data/tareas.js';
+import { conectar } from '../config/persistenciaArchivos.js';
 
 export async function agregarTarea() {
-  const { descripcion } = await inquirer.prompt([
-    { type: 'input', name: 'descripcion', message: 'Descripción de la tarea:' }
-  ]);
+  try {
+    const { descripcion } = await inquirer.prompt([
+      { type: 'input', name: 'descripcion', message: 'Descripción de la tarea:' }
+    ]);
 
-  const nueva = {
-    id: Date.now(),
-    descripcion: descripcion.trim(),
-    completada: false
-  };
+    const nueva = {
+      id: Date.now(),
+      descripcion: descripcion.trim(),
+      completada: false
+    };
 
-  tareas.push(nueva);
-  console.log('✅ Tarea agregada.');
+    const db = await conectar();
+    const coleccion = db.collection("edgarEnLaNube");
+    await coleccion.insertOne(nueva);
+    tareas.push(nueva);
+
+    console.log('✅ Tarea agregada.');
+  } catch (error) {
+    console.log("Error al insertar nueva tarea", error)
+  }
+
 }
 
-export function listarTareas() {
+export async function listarTareas() {
+  const db = await conectar();
+  const coleccion = db.collection("edgarEnLaNube");
+  const tareas = await coleccion.find().toArray();
   if (tareas.length === 0) {
     console.log('📭 No hay tareas registradas.');
     return;
@@ -48,6 +61,13 @@ export async function editarTarea() {
     { type: 'input', name: 'nuevaDescripcion', message: 'Nueva descripción:' }
   ]);
 
+  const db = await conectar();
+  const coleccion = db.collection("edgarEnLaNube");
+  await coleccion.updateOne(
+  {id:tareas[indice].id},
+  {$set:{descripcion:nuevaDescripcion.trim()}}
+  );
+
   tareas[indice].descripcion = nuevaDescripcion.trim();
   console.log('✏️ Tarea actualizada.');
 }
@@ -66,6 +86,14 @@ export async function eliminarTarea() {
       }))
     }
   ]);
+
+  const tareaEliminada = tareas[indice];
+
+  const db = await conectar();
+  const coleccion = db.collection("edgarEnLaNube");
+  await coleccion.deleteOne({
+    id:tareaEliminada.id
+  })
 
   tareas.splice(indice, 1);
   console.log('🗑️ Tarea eliminada.');

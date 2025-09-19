@@ -6,7 +6,7 @@ const dbName =  "edgarEnLaNube";
 
 export async function conectar(){
     try{
-        await Cliente.connect();
+        await cliente.connect();
         console.log("Conexión exitosa con MongoDB");
         return cliente.db(dbName)
     }catch(error){
