@@ -1,182 +1,145 @@
-
-import inquirer from 'inquirer';
+import inquirer from "inquirer";
 import _ from "lodash";
-import { tareas } from '../data/tareas.js';
-import { conectar } from '../config/persistenciaArchivos.js';
+import { conectar } from "../config/persistenciaArchivos.js";
+
+
+function leerTareas() {
+  return conectar.leer();
+}
+function guardarTareas(tareas) {
+  conectar.guardar(tareas);
+}
+
 
 export async function agregarTarea() {
-  try {
-    const { titulo, descripcion, prioridad } = await inquirer.prompt([
-      { type: "input", name: "titulo", message: "Título de la tarea:" },
-      { type: 'input', name: 'descripcion', message: 'Descripción de la tarea:' },
-      {
-        type: "list",
-        name: "prioridad",
-        message: "Prioridad:",
-        choices: ["alta", "media", "baja"],
-        default: "media"
-      }
-    ]);
+  const { descripcion } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "descripcion",
+      message: "Ingresa la descripción de la tarea:",
+    },
+  ]);
 
-    if (_.isEmpty(titulo.trim())) {
-      console.log(" El título no puede estar vacío.");
-      return;
-    }
-    const nueva = {
-      id: Date.now(),
-      titulo: titulo.trim(),
-      descripcion: descripcion.trim(),
-      prioridad,
-      estado: "pendiente"
-    };
+  const tareas = leerTareas();
+  tareas.push({
+    id: Date.now(),
+    descripcion,
+    completada: false,
+  });
+  guardarTareas(tareas);
 
-    const db = await conectar();
-    const coleccion = db.collection("edgarEnLaNube");
-    await coleccion.insertOne(nueva);
-    tareas.push(nueva);
-
-    tareas.splice(0, tareas.length, ..._.uniqBy(tareas, "titulo"));
-
-    console.log('✅ Tarea agregada.');
-  } catch (error) {
-    console.log("Error al insertar nueva tarea", error)
-  }
-
+  console.log("Tarea agregada con éxito!");
 }
 
 export async function listarTareas() {
-  try {
-    const db = await conectar();
-    const coleccion = db.collection("edgarEnLaNube");
-    const tareas = await coleccion.find().toArray();
-    if (_.isEmpty(tareas)) {
-      console.log('📭 No hay tareas registradas.');
-      return;
-    }
-    const ordenadas = _.orderBy(tareas, ["prioridad", "descripcion"], ["asc", "asc"]);
-    const agrupadas = _.groupBy(ordenadas, "estado");
-
-    console.log("\n📋 Pendientes:");
-    console.table(agrupadas["pendiente"] || []);
-
-    console.log("\n📋 En progreso:");
-    console.table(agrupadas["en progreso"] || []);
-
-    console.log("\n📋 Completadas:");
-    console.table(agrupadas["completada"] || []);
-
-  } catch (error) {
-    console.log(" Error al listar tareas:", error);
+  const tareas = leerTareas();
+  if (tareas.length === 0) {
+    console.log("No hay tareas registradas.");
+    return;
   }
+  console.log("\nLista de tareas:");
+  tareas.forEach((t) =>
+    console.log(
+      `- [${t.completada ? "✔" : " "}] ${t.descripcion} (ID: ${t.id})`
+    )
+  );
 }
 
 
-export async function editarTarea() {
-  try {
-    const db = await conectar();
-    const coleccion = db.collection("edgarEnLaNube");
-    const tareas = await coleccion.find().toArray();
+export async function listarPorEstado(estado) {
+  const tareas = leerTareas();
+  const filtradas =
+    estado === "completadas"
+      ? tareas.filter((t) => t.completada)
+      : tareas.filter((t) => !t.completada);
 
-    if (_.isEmpty(tareas)) return console.log('⚠️ No hay tareas para editar.');
-
-    const { tareaId } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'tareaId',
-        message: 'Selecciona una tarea para editar:',
-        choices: tareas.map((t) => ({
-          name: t.descripcion,
-          value: t.id
-        }))
-      }
-    ]);
-
-    const { nuevaDescripcion } = await inquirer.prompt([
-      { type: 'input', name: 'nuevaDescripcion', message: 'Nueva descripción:' }
-    ]);
-
-    await coleccion.updateOne(
-      { id: tareaId },
-      { $set: { descripcion: nuevaDescripcion.trim() } }
-    );
-
-    console.log('✏️ Tarea actualizada.');
-  } catch (error) {
-    console.log("Error al actualizar la tarea...", error);
+  if (filtradas.length === 0) {
+    console.log(`No hay tareas ${estado}.`);
+    return;
   }
 
+  console.log(`\nTareas ${estado}:`);
+  filtradas.forEach((t) =>
+    console.log(
+      `- [${t.completada ? "✔" : " "}] ${t.descripcion} (ID: ${t.id})`
+    )
+  );
+}
+
+export async function cambiarEstado() {
+  const tareas = leerTareas();
+  if (tareas.length === 0) {
+    console.log("📭 No hay tareas para actualizar.");
+    return;
+  }
+
+  const { id } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "id",
+      message: "Selecciona la tarea que deseas marcar como completada:",
+      choices: tareas
+        .filter((t) => !t.completada)
+        .map((t) => ({ name: t.descripcion, value: t.id })),
+    },
+  ]);
+
+  const index = tareas.findIndex((t) => t.id === id);
+  tareas[index].completada = true;
+  guardarTareas(tareas);
+
+  console.log("Tarea marcada como completada!");
+}
+
+export async function editarTarea() {
+  const tareas = leerTareas();
+  if (tareas.length === 0) {
+    console.log("No hay tareas para editar.");
+    return;
+  }
+
+  const { id } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "id",
+      message: "Selecciona la tarea que deseas editar:",
+      choices: tareas.map((t) => ({ name: t.descripcion, value: t.id })),
+    },
+  ]);
+
+  const { nuevaDescripcion } = await inquirer.prompt([
+    {
+      type: "input",
+      name: "nuevaDescripcion",
+      message: "Nueva descripción:",
+    },
+  ]);
+
+  const index = tareas.findIndex((t) => t.id === id);
+  tareas[index].descripcion = nuevaDescripcion;
+  guardarTareas(tareas);
+
+  console.log("Tarea editada con éxito!");
 }
 
 export async function eliminarTarea() {
-  try {
-    const db = await conectar();
-    const coleccion = db.collection("edgarEnLaNube");
-    const tareas = await coleccion.find().toArray();
-
-    if (_.isEmpty(tareas)) return console.log('⚠️ No hay tareas para eliminar.');
-
-    const { tareaId } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'tareaId',
-        message: 'Selecciona una tarea para eliminar:',
-        choices: tareas.map((t) => ({
-          name: t.descripcion,
-          value: t.id
-        }))
-      }
-    ]);
-
-    await coleccion.deleteOne({ id: tareaId })
-
-    console.log('🗑️ Tarea eliminada.');
-  } catch (error) {
-    console.log("Error al eliminar tarea", error)
+  const tareas = leerTareas();
+  if (tareas.length === 0) {
+    console.log("No hay tareas para eliminar.");
+    return;
   }
 
+  const { id } = await inquirer.prompt([
+    {
+      type: "list",
+      name: "id",
+      message: "Selecciona la tarea que deseas eliminar:",
+      choices: tareas.map((t) => ({ name: t.descripcion, value: t.id })),
+    },
+  ]);
+
+  const nuevas = tareas.filter((t) => t.id !== id);
+  guardarTareas(nuevas);
+
+  console.log("Tarea eliminada con éxito!");
 }
-
-export async function cambiarEstado(id, nuevoEstado) {
-  try {
-    const db = await conectar();
-    const coleccion = db.collection("edgarEnLaNube");
-    const tarea = await coleccion.findOne({ id });
-
-    if (_.isEmpty(tarea)) {
-      console.log("Tarea no encontrada");
-      return;
-    };
-
-    await coleccion.updateOne(
-      { id },
-      { $set: { estado: nuevoEstado } }
-    )
-    console.log("Estado actualizado correctamente.");
-  } catch (error) {
-    console.log("Error al cambiar estado", error)
-  }
-}
-
-
-export async function buscarTareas(palabraClave) {
-  try {
-    const db = await conectar();
-    const coleccion = db.collection("edgarEnLaNube");
-    const tareas = await coleccion.find({
-      $or: [
-        { titulo: { $regex: palabraClave, $options: "i" } },
-        { descripcion: { $regex: palabraClave, $options: "i" } }
-      ]
-    }).toArray();
-
-    if (_.isEmpty(tareas)) {
-      console.log("No se encontraron coincidencias");
-      return;
-    }
-    console.log(" Resultados de la búsqueda:");
-    console.table(tareas);
-  } catch (error) {
-    console.log(" Error al buscar tarea", error);
-  }
-}
-
